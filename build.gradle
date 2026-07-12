@@ -105,3 +105,7 @@ wpi.java.configureTestTasks(test)
 tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
 }
+// 強迫 Java 編譯器使用 UTF-8 編碼讀取所有源碼，解決 Windows 中文亂碼報錯
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
