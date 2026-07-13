@@ -17,7 +17,7 @@ public class Intake extends SubsystemBase {
     @Override
     public void periodic() {
         io.updateInputs(inputs);
-        // 👇 因為你的 inputs 已經實作了 LoggableInputs，這裡就不會再報錯了！
+        // 因為你的 inputs 已經實作了 LoggableInputs，這裡就不會再報錯了！
         Logger.processInputs("Intake", inputs); 
     }
 

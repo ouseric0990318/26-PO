@@ -1,5 +1,10 @@
 package frc.robot.subsystems.drive;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import edu.wpi.first.wpilibj.DriverStation;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -10,6 +15,8 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Robot;
+
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends SubsystemBase {
@@ -24,6 +31,8 @@ public class Drive extends SubsystemBase {
 
     // 新增：底盤里程計，用來動態追蹤機器人在場上的絕對座標 (X, Y, Theta)
     private final SwerveDriveOdometry odometry;
+    // 新增：用來在模擬模式下累加車頭角度的變數（單位：弧度）
+    private double m_simYawRad = 0;
 
     /** 底盤建構子，接收四個 IO 實作（支援 Real 或 Sim） */
     public Drive(SwerveModuleIO flIO, SwerveModuleIO frIO, SwerveModuleIO blIO, SwerveModuleIO brIO) {
@@ -42,6 +51,31 @@ public class Drive extends SubsystemBase {
             getRotation2d(),
             getModulePositions()
         );
+        // ======= PathPlanner AutoBuilder 配置 =======
+        try {
+            // 自動從 src/main/deploy/pathplanner/settings.json 讀取你在 GUI 裡填寫的重量、MOI 等參數
+            RobotConfig config = RobotConfig.fromGUISettings();
+
+            AutoBuilder.configure(
+                this::getPose,                // 1. 機器人目前座標供應器 (Supplier)
+                this::resetOdometry,          // 2. 重設座標的消費者 (Consumer)
+                this::getRobotRelativeSpeeds, // 3. 晶片相對速度供應器
+                this::drive,                  // 4. 驅動底盤控制方法 (傳入 Robot-Relative 速度)
+                new PPHolonomicDriveController(
+                    new PIDConstants(5.0, 0.0, 0.0), // 平移 P-ID（真機依狀況調整，模擬用 5.0 很穩）
+                    new PIDConstants(5.0, 0.0, 0.0)  // 旋轉 P-ID
+                ),
+                config,                       // 5. 讀取出的機器人實體參數
+                () -> {
+                    // 6. 紅方自動路徑鏡像翻轉邏輯
+                    var alliance = DriverStation.getAlliance();
+                    return alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red;
+                },
+                this                          // 7. 綁定此底盤子系統需求
+            );
+        } catch (Exception e) {
+            DriverStation.reportError("PathPlanner AutoBuilder 配置失敗: " + e.getMessage(), e.getStackTrace());
+        }
     }
 
     /** * 核心驅動方法：接收目標 ChassisSpeeds 並分配給四個輪子
@@ -73,8 +107,11 @@ public class Drive extends SubsystemBase {
 
     /** 取得目前機器人的角度（提供給 Field-Relative 控制與里程計使用） */
     public Rotation2d getRotation2d() {
-        // Phoenix 6 的 Pigeon2 內建支援直接回傳 WPILib 的 Rotation2d 物件
-        return gyro.getRotation2d();
+        if (Robot.isReal()) {
+        return gyro.getRotation2d(); // 真機模式：讀取真實 Pigeon2
+        } else {
+        return new Rotation2d(m_simYawRad); // 模擬模式：回傳我們自己累加的角度
+        }
     }
 
     /** 取得當前機器人在賽場上的絕對動態姿態座標 (Pose2d) */
@@ -110,5 +147,27 @@ public class Drive extends SubsystemBase {
         
         // 額外記錄陀螺儀原始角度，除錯時非常好用
         Logger.recordOutput("Drive/GyroAngleRad", getRotation2d().getRadians());
+    }
+    @Override
+    public void simulationPeriodic() {
+    // 透過 Kinematics 把四個輪子的即時狀態逆推回底盤目前的實際速度
+    ChassisSpeeds chassisSpeeds = DriveConstants.kinematics.toChassisSpeeds(
+        frontLeft.getState(), // 如果你的 SwerveModule 取得狀態的方法叫 getModuleState() 記得同步修改
+        frontRight.getState(),
+        backLeft.getState(),
+        backRight.getState()    
+    );
+
+    // 每一個週期 (20ms = 0.02秒) 根據底盤的旋轉角速度 (omega)，動態累積車頭轉動的弧度
+    m_simYawRad += chassisSpeeds.omegaRadiansPerSecond * 0.02;
+    }
+    /**  取得機器人相對座標系的速度（PathPlanner 核心必備） */
+    public ChassisSpeeds getRobotRelativeSpeeds() {
+        return DriveConstants.kinematics.toChassisSpeeds(
+            frontLeft.getState(),
+            frontRight.getState(),
+            backLeft.getState(),
+            backRight.getState()
+        );
     }
 }

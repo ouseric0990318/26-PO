@@ -7,40 +7,61 @@ package frc.robot;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.LoggedRobot;
+import org.littletonrobotics.junction.networktables.NT4Publisher;
+import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
 /**
  * The methods in this class are called automatically corresponding to each mode, as described in
  * the TimedRobot documentation. If you change the name of this class or the package after creating
  * this project, you must also update the Main.java file in the project.
  */
-public class Robot extends TimedRobot {
+public class Robot extends LoggedRobot { 
+  
   private Command m_autonomousCommand;
+  private RobotContainer m_robotContainer;
 
-  private final RobotContainer m_robotContainer;
+  public Robot() {
+    // 保持建構子清空
+  }
 
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
    */
-  public Robot() {
-    // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
-    // autonomous chooser on the dashboard.
+  @Override
+  public void robotInit() {
+    // ─── 【第一步：AdvantageKit 初始化】 ──────────────────────────────────────
+    // 注意：這段必須放在 new RobotContainer() 之前，否則子系統的 Log 會全部漏抓！
+    
+    Logger.recordMetadata("ProjectName", "FRC-2026-Robot"); // 設定專案名稱紀錄
+
+    if (isReal()) {
+      // 真機模式：將 Log 數據直接寫入機器人上的 USB 隨身碟，並發送至網絡
+      Logger.addDataReceiver(new WPILOGWriter("/media/sda1"));
+      Logger.addDataReceiver(new NT4Publisher());
+    } else {
+      // 模擬模式：開啟 NT4 伺服器，讓電腦上的 AdvantageScope 可以 Live 連線即時抓取數據
+      Logger.addDataReceiver(new NT4Publisher());
+    }
+
+    // 正式啟動 Logger
+    Logger.start();
+
+
+    // ─── 【第二步：執行原本的實例化】 ────────────────────────────────────────
+    // 當 Logger 活過來後，再開始載入底盤、Intake、Turret 等子系統
     m_robotContainer = new RobotContainer();
   }
 
   /**
    * This function is called every 20 ms, no matter the mode. Use this for items like diagnostics
    * that you want ran during disabled, autonomous, teleoperated and test.
-   *
-   * <p>This runs after the mode specific periodic functions, but before LiveWindow and
-   * SmartDashboard integrated updating.
    */
   @Override
   public void robotPeriodic() {
-    // Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
-    // commands, running already-scheduled commands, removing finished or interrupted commands,
-    // and running subsystem periodic() methods.  This must be called from the robot's periodic
-    // block in order for anything in the Command-based framework to work.
+    // Runs the Scheduler.
     CommandScheduler.getInstance().run();
   }
 
@@ -66,12 +87,8 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {}
 
-   @Override
+  @Override
   public void teleopInit() {
-    // This makes sure that the autonomous stops running when
-    // teleop starts running. If you want the autonomous to
-    // continue until interrupted by another command, remove
-    // this line or comment it out.
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
