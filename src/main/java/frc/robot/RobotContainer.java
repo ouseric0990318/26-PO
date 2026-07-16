@@ -36,10 +36,30 @@ public class RobotContainer {
         // ====== 🟢 步驟 1：先完整初始化所有底盤與子系統 ======
         if (Robot.isReal()) {
             drive = new Drive(
-                new SwerveModuleIOReal(1, 2, 9, 0.0),
-                new SwerveModuleIOReal(3, 4, 10, 0.0),
-                new SwerveModuleIOReal(5, 6, 11, 0.0),
-                new SwerveModuleIOReal(7, 8, 12, 0.0)
+                new SwerveModuleIOReal(
+                    Constants.DriveConstants.kFLDriveId, 
+                    Constants.DriveConstants.kFLSteerId, 
+                    Constants.DriveConstants.kFLEncoderId, 
+                    Constants.DriveConstants.kFLOffset
+                ),
+                new SwerveModuleIOReal(
+                    Constants.DriveConstants.kFRDriveId, 
+                    Constants.DriveConstants.kFRSteerId, 
+                    Constants.DriveConstants.kFREncoderId, 
+                    Constants.DriveConstants.kFROffset
+                ),
+                new SwerveModuleIOReal(
+                    Constants.DriveConstants.kBLDriveId, 
+                    Constants.DriveConstants.kBLSteerId, 
+                    Constants.DriveConstants.kBLEncoderId, 
+                    Constants.DriveConstants.kBLOffset
+                ),
+                new SwerveModuleIOReal(
+                    Constants.DriveConstants.kBRDriveId, 
+                    Constants.DriveConstants.kBRSteerId, 
+                    Constants.DriveConstants.kBREncoderId, 
+                    Constants.DriveConstants.kBROffset
+                )
             );
             intake = new Intake(new IntakeIO() {}); // 等機構好了寫這兩個 
             turret = new Turret(new TurretIO() {});

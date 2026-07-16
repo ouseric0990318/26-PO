@@ -7,13 +7,19 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Example Path"
+            "pathName": "Left"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "Example Path"
+            "pathName": "Left 2"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "To Central"
           }
         }
       ]
